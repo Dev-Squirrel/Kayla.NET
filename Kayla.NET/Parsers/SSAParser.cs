@@ -67,19 +67,24 @@ namespace Kayla.NET.Parsers
                                 var columns = line.Split(Separator);
                                 var startText = columns[startIndexColumn];
                                 var endText = columns[endIndexColumn];
-
+                    
                                 var textLine = string.Join(",", columns.Skip(textIndexColumn));
-
+                                
                                 var start = ParseSsaTimecode(startText);
                                 var end = ParseSsaTimecode(endText);
-
+                                
                                 if (start > 0 && end > 0 && !string.IsNullOrEmpty(textLine))
                                 {
-                                    var item = new SubtitleItem
+                                    var existingItem = items.FirstOrDefault(item => item.EndTime == end);
+                                    if (existingItem == null)
                                     {
-                                        StartTime = start, EndTime = end, Text = ConvertString(textLine)
-                                    };
-                                    items.Add(item);
+                                        var item = new SubtitleItem {StartTime = start, EndTime = end, Text = ConvertString(textLine)};
+                                        items.Add(item);
+                                    }
+                                    else
+                                    {
+                                        existingItem.Text += "\n" + ConvertString(textLine);
+                                    }
                                 }
                             }
 
