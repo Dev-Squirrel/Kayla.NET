@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using Kayla.NET.Models;
 using UtfUnknown;
 
@@ -11,8 +13,71 @@ namespace Kayla.NET.Parsers
     {
         public string FileExtension { get; set; } = ".smi";
 
+        // 시간 정보를 추출하여 정수형으로 반환하는 함수입니다.
+        static int GetTime(string line)
+        {
+            string pattern = @"Start=(\d+)";
+            Match match = Regex.Match(line, pattern);
+            if (match.Success)
+            {
+                return Int32.Parse(match.Groups[1].Value);
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
         public bool ParseFormat(string path, out List<SubtitleItem> result)
         {
+            // 입력 파일을 줄 단위로 읽어들입니다.
+            List<string> lines = File.ReadAllLines(path).ToList();
+
+            // 각 라인에서 <Sync> 태그를 대문자로 변경합니다.
+            List<string> modifiedLines = new List<string>();
+            foreach (string line123 in lines)
+            {
+                string stringB = line123;
+                // <P Class=KRCC> 누락 자막도 많아서 대응
+                if (line123.StartsWith("<SYNC") && !line123.Contains("<P Class=KRCC>"))
+                {
+                    stringB = line123.Insert(line123.IndexOf(">") + 1, "<P Class=KRCC>");
+                }
+
+                // sync 대소문자 변경
+                string modifiedLine = Regex.Replace(stringB, @"(?i)<sync", "<SYNC");
+                // <P Class=KRCC> 이후 줄 바꿈 안하면 변환 안됨... 그래서 줄바꿈 추가
+                modifiedLines.Add(Regex.Replace(modifiedLine, @"(<P.*?>)(.+)", "$1\r\n$2"));
+            }
+
+            // 시간 정보가 포함된 라인만 선택하여 리스트에 저장합니다.
+            List<string> timeLines = modifiedLines.Where(x => x.StartsWith("<SYNC")).ToList();
+
+            // 시간 정보를 기준으로 오름차순으로 정렬합니다.
+            List<string> sortedLines = timeLines.OrderBy(x => GetTime(x)).ToList();
+
+            // 정렬된 내용을 새로운 리스트에 저장합니다.
+            List<string> outputLines = new List<string>();
+            int currentIndex = 0;
+            foreach (string line234 in modifiedLines)
+            {
+                if (line234.StartsWith("<SYNC"))
+                {
+                    // 시간 정보가 포함된 라인이면, 정렬된 리스트에서 라인을 가져옵니다.
+                    outputLines.Add(sortedLines[currentIndex]);
+                    currentIndex++;
+                }
+                else
+                {
+                    // 그 외의 라인은 그대로 출력합니다.
+                    outputLines.Add(line234);
+                }
+            }
+
+            // 변경된 내용과 정렬된 내용을 새로운 파일에 저장합니다.
+            File.WriteAllLines(path, outputLines);
+
+            // 기존 코드 시작
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
             var detect = CharsetDetector.DetectFromFile(path);
