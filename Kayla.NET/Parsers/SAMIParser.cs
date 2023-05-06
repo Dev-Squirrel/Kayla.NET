@@ -44,6 +44,13 @@ namespace Kayla.NET.Parsers
                     stringB = line123.Insert(line123.IndexOf(">") + 1, "<P Class=KRCC>");
                 }
 
+                // <Font Face="폰트명" 태그가 있지만 닫히지 않았다면 > 추가
+                Match match = Regex.Match(stringB, "<Font Face=\"(.*?)\"(?=[^>]*$)");
+                if (match.Success && !match.Groups[0].Value.EndsWith(">"))
+                {
+                    stringB = stringB.Replace(match.Groups[1].Value, match.Groups[1].Value + ">");
+                }
+
                 // sync 대소문자 변경
                 string modifiedLine = Regex.Replace(stringB, @"(?i)<sync", "<SYNC");
                 // <P Class=KRCC> 이후 줄 바꿈 안하면 변환 안됨... 그래서 줄바꿈 추가
